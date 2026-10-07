@@ -436,6 +436,16 @@ describe('Unit: Service: billing', function () {
         expect(transitionTo.calledOnceWithExactly('/settings/newsletters')).to.be.true;
     });
 
+    it('navigates automations directly to the automations route', function () {
+        const service = this.owner.lookup('service:billing');
+        billingService = service;
+        const transitionTo = sinon.stub(service.router, 'transitionTo');
+
+        service.navigateToAdminDestination('automations');
+
+        expect(transitionTo.calledOnceWithExactly('/automations')).to.be.true;
+    });
+
     it('returns to the recorded route for the previousPage destination', function () {
         const service = this.owner.lookup('service:billing');
         billingService = service;

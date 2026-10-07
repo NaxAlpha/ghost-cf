@@ -150,6 +150,7 @@ describe('Integration: Component: gh-billing-iframe', function () {
         theme: '/settings/design/change-theme',
         analytics: '/settings/analytics',
         staff: '/settings/staff',
+        automations: '/automations',
         stripe: '/settings/stripe-connect',
         integrations: '/settings/integrations'
     };
