@@ -26,7 +26,7 @@ backend capability and handle the older-server case separately.
 ## Flag stages
 
 Flags are camelCase keys registered in
-`ghost/core/core/shared/labs.js`:
+`ghost/core/shared/labs.js`:
 
 | List                   | Use                                         | Normal Admin surface                                    |
 | ---------------------- | ------------------------------------------- | ------------------------------------------------------- |
@@ -51,7 +51,7 @@ call site. It is a short cleanup step, not a permanent home for released flags.
 ## Add a flag
 
 1. Add the key to `PRIVATE_FEATURES` or `PUBLIC_BETA_FEATURES` in
-   `ghost/core/core/shared/labs.js`.
+   `ghost/core/shared/labs.js`.
 2. Add the matching toggle to
    `apps/admin/src/settings/advanced/labs/private-features.tsx` or
    `apps/admin/src/settings/advanced/labs/beta-features.tsx`.
@@ -225,7 +225,7 @@ in `BASE_GHOST_ENV`. Configuration outranks the stored setting, so
 `test.use({labs: ...})` cannot turn that flag off.
 
 When adding, promoting, or removing a flag, update the affected snapshots from
-`ghost/core/`:
+`ghost/`:
 
 ```bash
 pnpm test:single test/e2e-api/admin/config.test.js -u
