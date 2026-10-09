@@ -1,0 +1,29 @@
+{
+  "name": "ghost-cf-platform",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cf dev",
+    "build": "cf build",
+    "deploy": "cf deploy",
+    "typecheck": "cf workers types && tsc",
+    "test": "node --test test/*.test.cjs",
+    "probe:ghost": "node scripts/probe-ghost.cjs",
+    "themes:compile": "node scripts/precompile-theme.cjs",
+    "schema:compile": "node scripts/compile-schema.cjs"
+  },
+  "dependencies": {
+    "express": "catalog:",
+    "handlebars": "catalog:",
+    "knex": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
+    "@types/node": "catalog:",
+    "cf": "catalog:",
+    "esbuild": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:"
+  },
+  "packageManager": "pnpm@11.6.0"
+}

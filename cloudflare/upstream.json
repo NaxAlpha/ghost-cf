@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/TryGhost/Ghost",
+  "tag": "v6.69.0",
+  "commit": "056f6bfa657f2175b924106fcb25c3fc245bb4e7",
+  "release": "https://github.com/TryGhost/Ghost/releases/download/v6.69.0/ghost-6.69.0.tgz"
+}
