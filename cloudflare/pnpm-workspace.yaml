@@ -1,6 +1,7 @@
 packages:
   - .
   - site
+  - inbox
 allowBuilds:
   'esbuild@0.25.12': true
   'workerd@1.20260918.1 || 1.20260921.1 || 1.20261006.1': true

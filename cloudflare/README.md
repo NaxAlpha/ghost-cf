@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Twenty-nine local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Thirty local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -189,6 +189,9 @@ HTTP integrations, live email delivery, and complete browser flows remain
 unfinished.
 
 ## Transactional email
+
+An optional [private admin inbox](inbox/README.md) receives owner authentication
+mail through Email Routing into R2. Its HTTP API requires a separate secret.
 
 Set `GHOST_CF_MAIL_FROM` to a sender address on a domain onboarded to Cloudflare
 Email Service when running both `prepare-assets.cjs` and the site build or
