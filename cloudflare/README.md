@@ -187,12 +187,15 @@ The current full bundle exceeds the Workers free-plan size limit. A deployment
 on an already-paid account is not evidence of free-tier compatibility. Outgoing
 HTTP integrations and complete feature parity remain unfinished. Real Chrome
 checks pass owner creation, native email device verification, authenticated
-Admin, draft saving, publication, and public rendering. Social Web requires its
-separate backend and currently returns 404.
+Admin, draft saving, publication, and public rendering. Live checks also pass
+member signup email, magic-link verification, signed member sessions, data export,
+route and redirect downloads, feeds, and sitemaps.
 
 After initializing the owner privately, set `GHOST_CF_PUBLIC=true` to serve the
 publication without the test header. Set `GHOST_CF_DOMAIN` to attach a custom
-domain only when ready to replace its current site. Owner creation still requires
+domain only when ready to replace its current site. An existing Worker route can
+take precedence over the custom domain; `GHOST_CF_ROUTE` adds a specific fetch
+route without changing other hostnames. Owner creation still requires
 the private header, and internal runtime assets are blocked in both modes. Keep
 the bootstrap token private; Ghost handles normal staff and member authentication.
 
@@ -226,3 +229,18 @@ Ghost's trusted integration HTTP client also fetches external HTTPS in Workers
 after delegating its default DNS resolution to the platform. The separate
 `request-external` DNS checks used for user-supplied URLs are preserved and still
 need a compatible secure transport before those integrations work.
+
+## Social Web
+
+Set `GHOST_CF_ACTIVITYPUB_ORIGIN` to the HTTPS origin of a compatible ActivityPub
+backend. Only `/.ghost/activitypub/`, WebFinger, and NodeInfo requests are proxied.
+Ghost identity authorization is forwarded; staff cookies and the bootstrap token
+are removed. The proxy replaces untrusted forwarding headers with the request's
+publication hostname and Cloudflare client address.
+
+Ghost's [hosted service](https://docs.ghost.org/hosting/#hosted-activitypub-usage-limits)
+at `https://ap.ghost.org` is an optional external dependency. Its use requires
+accepting Ghost's published limits and sending Social Web requests to that
+service. Live checks pass registration, authenticated Admin onboarding, WebFinger,
+and NodeInfo. This does not establish federation parity or provide a
+Cloudflare-hosted ActivityPub backend.

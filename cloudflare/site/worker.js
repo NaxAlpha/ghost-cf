@@ -9,8 +9,10 @@ import boot from '../artifacts/ghost/ghost-platform-boot.mjs';
 
 import requestModule from '../src/node-request.cjs';
 import accessModule from '../src/site-access.cjs';
+import activityModule from '../src/activitypub-proxy.cjs';
 const { nodeRequest } = requestModule;
 const { siteAccess } = accessModule;
+const { activityPubRequest } = activityModule;
 
 const server = createServer((request, response) => boot.getBindings().APP(request, response));
 server.listen(2368);
@@ -80,6 +82,8 @@ export class GhostPublication extends DurableObject {
 export default {
   async fetch(request, env, ctx) {
     if (!siteAccess(request, env)) return new Response('Not found', { status: 404 });
+    const social = activityPubRequest(request, env.ACTIVITYPUB_ORIGIN);
+    if (social) return fetch(social);
     if (new URL(request.url).pathname === '/__ghost-cf/fonts/Inter.ttf') {
       return env.ASSETS.fetch(request);
     }
