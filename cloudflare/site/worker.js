@@ -1,7 +1,6 @@
 import { createServer } from 'node:http';
 import { handleAsNodeRequest } from 'cloudflare:node';
 import { DurableObject } from 'cloudflare:workers';
-import { timingSafeEqual } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { rasterizeSvg } from '../src/svg-renderer.mjs';
@@ -9,7 +8,9 @@ import taskModule from '../src/durable-tasks.cjs';
 import boot from '../artifacts/ghost/ghost-platform-boot.mjs';
 
 import requestModule from '../src/node-request.cjs';
+import accessModule from '../src/site-access.cjs';
 const { nodeRequest } = requestModule;
+const { siteAccess } = accessModule;
 
 const server = createServer((request, response) => boot.getBindings().APP(request, response));
 server.listen(2368);
@@ -78,14 +79,9 @@ export class GhostPublication extends DurableObject {
 
 export default {
   async fetch(request, env, ctx) {
+    if (!siteAccess(request, env)) return new Response('Not found', { status: 404 });
     if (new URL(request.url).pathname === '/__ghost-cf/fonts/Inter.ttf') {
       return env.ASSETS.fetch(request);
-    }
-    // Protect experimental deployments, including the owner setup endpoint.
-    const supplied = Buffer.from(request.headers.get('X-Ghost-CF-Test') || '');
-    const expected = Buffer.from(env.TEST_TOKEN);
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-      return new Response('Not found', { status: 404 });
     }
     if (new URL(request.url).pathname.startsWith('/ghost/assets/')) {
       return env.ASSETS.fetch(request);

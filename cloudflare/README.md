@@ -185,8 +185,16 @@ publication; a subsequent complete runtime restart retains the theme and post.
 
 The current full bundle exceeds the Workers free-plan size limit. A deployment
 on an already-paid account is not evidence of free-tier compatibility. Outgoing
-HTTP integrations and complete browser flows remain
-unfinished.
+HTTP integrations and complete feature parity remain unfinished. Real Chrome
+checks pass owner creation, native email device verification, authenticated
+Admin, draft saving, publication, and public rendering. Social Web requires its
+separate backend and currently returns 404.
+
+After initializing the owner privately, set `GHOST_CF_PUBLIC=true` to serve the
+publication without the test header. Set `GHOST_CF_DOMAIN` to attach a custom
+domain only when ready to replace its current site. Owner creation still requires
+the private header, and internal runtime assets are blocked in both modes. Keep
+the bootstrap token private; Ghost handles normal staff and member authentication.
 
 ## Transactional email
 
@@ -207,7 +215,10 @@ signup-link verification, and signed member identity sessions. Messages are
 accepted by the native local email simulator; a test-only capture checks their
 HTML and text without real delivery. A real transactional delivery check passed
 through Email Routing into the private inbox, including authenticated retrieval.
-Ghost's complete live mail workflows still need verification. Cloudflare Email Service is for transactional messages; Ghost
+Real Chrome staff sign-in passes native delivery into the private inbox and code
+verification. Member mail must use a sender on the onboarded domain; a default
+sender derived from a `workers.dev` test hostname cannot send. Ghost's remaining
+live mail workflows still need verification. Cloudflare Email Service is for transactional messages; Ghost
 newsletters still require a supported bulk-mail provider. Do not configure a
 real sender for disposable tests unless delivery is intended.
 

@@ -12,6 +12,7 @@ export default defineConfig({
     name,
     entrypoint,
     compatibilityDate: '2026-10-10',
+    observability: { enabled: true, traces: { enabled: true } },
     env: {
       MAIL: bindings.r2({ name: bucket }),
       INBOX_TOKEN: bindings.secret(),

@@ -11,6 +11,7 @@ export default defineConfig({
     name,
     entrypoint,
     compatibilityDate: '2026-10-10',
+    ...(process.env.GHOST_CF_DOMAIN ? { domains: [process.env.GHOST_CF_DOMAIN] } : {}),
     exports: { GhostPublication: exports.durableObject({ storage: 'sqlite' }) },
     assets: { runWorkerFirst: true, htmlHandling: 'none', notFoundHandling: 'none' },
     observability: { enabled: true, traces: { enabled: true } },
@@ -20,6 +21,7 @@ export default defineConfig({
       MEDIA: bindings.r2({ name: bucket }),
       ...(process.env.GHOST_CF_MAIL_FROM ? { EMAIL: bindings.sendEmail() } : {}),
       TEST_TOKEN: bindings.secret(),
+      PUBLIC_SITE: bindings.json(process.env.GHOST_CF_PUBLIC === 'true'),
     },
   },
 });
