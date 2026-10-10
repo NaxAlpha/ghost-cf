@@ -185,7 +185,7 @@ publication; a subsequent complete runtime restart retains the theme and post.
 
 The current full bundle exceeds the Workers free-plan size limit. A deployment
 on an already-paid account is not evidence of free-tier compatibility. Outgoing
-HTTP integrations, live email delivery, and complete browser flows remain
+HTTP integrations and complete browser flows remain
 unfinished.
 
 ## Transactional email
@@ -205,8 +205,9 @@ Local end-to-end checks pass password-reset email generation, password changes,
 staff device-verification email and code verification, member signup email,
 signup-link verification, and signed member identity sessions. Messages are
 accepted by the native local email simulator; a test-only capture checks their
-HTML and text without real delivery. Live delivery and every mail workflow still
-need verification. Cloudflare Email Service is for transactional messages; Ghost
+HTML and text without real delivery. A real transactional delivery check passed
+through Email Routing into the private inbox, including authenticated retrieval.
+Ghost's complete live mail workflows still need verification. Cloudflare Email Service is for transactional messages; Ghost
 newsletters still require a supported bulk-mail provider. Do not configure a
 real sender for disposable tests unless delivery is intended.
 

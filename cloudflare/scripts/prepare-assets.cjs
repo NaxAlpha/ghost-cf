@@ -45,6 +45,8 @@ for (const kind of ['images', 'media', 'files', 'imports']) {
 }
 const configuration = {
   url: url.origin,
+  // Let the Workers edge compress responses after the Node HTTP bridge.
+  compress: false,
   database: { client: 'sqlite3', connection: { filename: ':memory:' } },
   logging: { transports: ['stdout'] },
   sendWelcomeEmail: false,

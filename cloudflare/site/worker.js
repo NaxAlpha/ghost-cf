@@ -90,6 +90,12 @@ export default {
     if (new URL(request.url).pathname.startsWith('/ghost/assets/')) {
       return env.ASSETS.fetch(request);
     }
-    return ctx.exports.GhostPublication.getByName('publication').fetch(request);
+    const response = await ctx.exports.GhostPublication.getByName('publication').fetch(request);
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: response.headers,
+      encodeBody: 'manual',
+    });
   },
 };
