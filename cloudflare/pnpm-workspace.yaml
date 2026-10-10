@@ -6,7 +6,7 @@ allowBuilds:
 catalog:
   '@tryghost/bookshelf-transaction-events': '2.3.16'
   'bookshelf': '1.2.0'
-  '@cloudflare/vite-plugin': '2.0.0-beta.sha-c82c3efb3'
+  '@cloudflare/vite-plugin': '2.0.0-beta.sha-91c870c02'
   'cf': '1.0.0-beta.13'
   'esbuild': '0.25.12'
   'express': '4.22.2'
@@ -16,3 +16,5 @@ catalog:
   'typescript': 'npm:@typescript/typescript6@6.0.2'
   'vite': '8.3.4'
   '@types/node': '22.20.1'
+minimumReleaseAgeExclude:
+  - '@cloudflare/vite-plugin@2.0.0-beta.sha-91c870c02'

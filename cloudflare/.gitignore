@@ -5,3 +5,4 @@ node_modules/
 artifacts/
 vendor/
 worker-startup.cpuprofile
+worker-configuration.d.ts

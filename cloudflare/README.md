@@ -37,8 +37,8 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Nine local tests cover D1 queries, bindings, R2 streaming and byte ranges,
-subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
+Ten local tests cover D1 queries, bindings, Bookshelf database identity,
+R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
 testing. Test names and credentials are deliberately absent from this repository.
@@ -78,6 +78,12 @@ with the same authentication. Delete the Worker, database, and bucket afterward.
 production data, or public content endpoints are implemented yet.
 
 ## Remaining work
+
+A local full-release diagnostic bundle has reached Ghost's database migration
+stage after loading configuration, Express, and Bookshelf. This diagnostic is
+still under development and does not establish successful Ghost boot. The beta
+`cf dev` runner currently fails with a code-generation error; production bundles
+are being tested directly in the local Workers runtime.
 
 1. Bundle and boot the official Ghost release with explicit platform seams for
    configuration, filesystem assets, dynamic dependencies, and failure handling.
