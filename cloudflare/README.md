@@ -1,8 +1,8 @@
 # Ghost on Cloudflare
 
-Experimental port of Ghost 6.69.0. **This branch does not yet run Ghost.** The
-Worker currently exercises the platform adapters; it does not provide the blog,
-Admin, members, newsletters, or Ghost APIs. Do not deploy it as a production blog.
+Experimental port of Ghost 6.69.0. **Full Ghost boot and core publishing work locally in Workers.**
+The full site bootstrap is experimental; feature parity and production readiness
+are still being verified. The default project remains an adapter probe.
 
 Upstream Ghost is preserved. All port code lives in this directory, with its own
 pnpm workspace. `upstream.json` records the release and commit being tested.
@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Eleven local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Twenty-one local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -84,8 +84,9 @@ frontend and backend enabled. The homepage, Admin HTML, site API, RSS, and sitem
 return HTTP 200 in the production Workers runtime. Owner onboarding and login return HTTP 201. Authenticated draft creation,
 publishing, and rendering the resulting public post pass locally, as do the tags,
 members, newsletters, tiers, and settings read APIs. Image uploads through the Admin API and byte-for-byte R2 retrieval also pass.
-Admin assets, scheduled publishing, restart persistence, and external integrations
-are still being verified. These results do not establish a usable
+Admin JavaScript and CSS delivery, native alarm scheduled publishing, and
+published-content persistence across complete runtime restart pass locally.
+External integrations and full browser workflows are still being verified. These results do not establish a usable
 Ghost installation. The beta
 `cf dev` runner currently fails with a code-generation error; production bundles
 are being tested directly in the local Workers runtime.
@@ -126,7 +127,8 @@ and imports precompiled Undici WASM. It precompiles the upstream Admin JSON
 schemas with their defaults and validation behavior, and schedules Bluebird
 callbacks with native Promises to work within Durable Object transaction gates. The result requires a Worker bootstrap that
 provides configuration, filesystem assets, bindings, and the HTTP bridge. That
-bootstrap is still under development. This command is not a deployment installer.
+bootstrap is available in `site/`; it is still experimental. This command alone
+is not a deployment installer.
 Uploaded theme compilation and gift preview image composition remain incomplete.
 
 SQLite bulk inserts use modern VALUES statements and pack large scalar binding
@@ -135,3 +137,38 @@ retain retries, cancellation, recurrence, and identity across object recreation.
 The jobs and routes adapters inherit Ghost's own base classes supplied by the
 release builder. Cloudflare Images replaces ordinary native image resizing; its
 full image and gift workflow remains to be verified.
+
+Remote full-site testing also passed owner setup, login, publishing, public post
+rendering, Admin asset delivery, R2 upload and byte-for-byte retrieval, original
+image retrieval, WebP transformation, and native scheduled publishing after
+redeployment on 2026-10-10. These checks used an
+already-paid account; they do not prove complete feature parity or free hosting.
+
+## Experimental full site
+
+Use an installed official release containing its runtime dependencies, bundled
+themes, and built Admin assets. From this directory:
+
+```sh
+node scripts/build-ghost.cjs /absolute/path/to/installed/ghost artifacts/ghost
+node scripts/prepare-assets.cjs /absolute/path/to/installed/ghost artifacts/ghost https://your-test-worker.your-subdomain.workers.dev
+cd site
+GHOST_CF_WORKER_NAME=your-unique-test-worker GHOST_CF_BUCKET_NAME=your-dedicated-bucket cf deploy --dry-run
+```
+
+Set `CLOUDFLARE_ACCOUNT_ID` to select the intended account. Create the dedicated
+bucket using `cf`, then deploy with `--secrets-file` pointing to a private JSON
+file containing a random `TEST_TOKEN`. Every request requires the
+`X-Ghost-CF-Test` header. Browser access requires a test client that supplies it.
+Never reuse a production Worker or bucket name for disposable testing.
+
+The site uses one Worker and one SQLite Durable Object per publication. It
+hydrates release assets, including binary theme files, into ephemeral storage;
+media persists in R2, while routing settings and background tasks persist in
+Durable Object storage. Admin assets use Workers Static Assets. Owner welcome
+email is disabled until mail transport is configured.
+
+The current full bundle exceeds the Workers free-plan size limit. A deployment
+on an already-paid account is not evidence of free-tier compatibility. Theme
+uploads, gift previews, outgoing HTTP integrations, email, and complete browser
+flows remain unfinished.

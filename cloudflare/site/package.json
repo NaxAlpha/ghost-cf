@@ -1,0 +1,10 @@
+{
+  "name": "ghost-cf-site",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
+    "cf": "catalog:",
+    "vite": "catalog:"
+  }
+}

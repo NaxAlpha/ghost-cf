@@ -68,8 +68,7 @@ function createGhostAdapters({
         const request = new Request(url, { method, headers, body });
         const response = await getBindings().INTERNAL_FETCH(request);
         await response.body?.cancel();
-        if (!response.ok && response.status !== 404)
-          throw new Error(`Scheduled Ghost request failed: ${response.status}`);
+        if (!response.ok) throw new Error(`Scheduled Ghost request failed: ${response.status}`);
       });
     }
     async schedule(job) {

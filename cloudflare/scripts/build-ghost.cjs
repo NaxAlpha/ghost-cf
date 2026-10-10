@@ -96,6 +96,7 @@ fs.writeFileSync(
 
 const templateRegistryPath = path.resolve(outputRoot, 'ghost-template-registry.cjs');
 const templateEntries = [];
+const templateKeys = new Set();
 const hbs = createRequire(path.join(root, 'package.json'))('handlebars');
 function templateWalk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -110,6 +111,8 @@ function templateWalk(dir) {
             require('node:crypto').createHash('sha256').update(input).digest('hex') +
             ':' +
             preventIndent;
+          if (templateKeys.has(key)) continue;
+          templateKeys.add(key);
           templateEntries.push(
             JSON.stringify(key) + ':' + hbs.precompile(input, { preventIndent }),
           );
