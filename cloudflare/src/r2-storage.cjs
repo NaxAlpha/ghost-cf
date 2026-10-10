@@ -1,4 +1,5 @@
 const { createReadStream } = require('node:fs');
+const { stat, readFile } = require('node:fs/promises');
 const { Readable } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 const { randomUUID } = require('node:crypto');
@@ -54,18 +55,52 @@ class R2Storage extends StorageBase {
     const now = new Date();
     return `${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
   }
-  async save(file, targetDir = this.getTargetDir()) {
+  async save(file, targetDir) {
     const name = path.basename(file.name).replace(/[^\w@.-]/g, '-');
-    const relativePath = safePath(`${targetDir}/${randomUUID()}-${name}`);
-    const body = Readable.toWeb(createReadStream(file.path));
-    await getBindings().MEDIA.put(this.key(relativePath), body, {
-      httpMetadata: { contentType: file.type || 'application/octet-stream' },
-    });
+    const relativePath = safePath(
+      await this.getUniqueFileName(
+        { name: targetDir === undefined ? `${randomUUID()}-${name}` : name },
+        safePath(targetDir ?? this.getTargetDir()),
+      ),
+    );
+    const bucket = getBindings().MEDIA;
+    const options = { httpMetadata: { contentType: file.type || 'application/octet-stream' } };
+    if (typeof globalThis.FixedLengthStream === 'function') {
+      const { size } = await stat(file.path);
+      const body = new globalThis.FixedLengthStream(size);
+      const abort = new AbortController();
+      const copying = Readable.toWeb(createReadStream(file.path)).pipeTo(body.writable, {
+        signal: abort.signal,
+      });
+      try {
+        await Promise.all([copying, bucket.put(this.key(relativePath), body.readable, options)]);
+      } catch (error) {
+        abort.abort(error);
+        await copying.catch(() => undefined);
+        throw error;
+      }
+    } else {
+      // Outside Workers, keep the adapter usable by Ghost's normal Node tests.
+      await bucket.put(this.key(relativePath), await readFile(file.path), options);
+    }
     return this.url(relativePath);
   }
   async saveRaw(buffer, targetPath) {
     const relativePath = safePath(targetPath);
-    await getBindings().MEDIA.put(this.key(relativePath), buffer);
+    await getBindings().MEDIA.put(this.key(relativePath), buffer, {
+      httpMetadata: {
+        contentType:
+          {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.webp': 'image/webp',
+            '.avif': 'image/avif',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml',
+          }[path.extname(relativePath).toLowerCase()] || 'application/octet-stream',
+      },
+    });
     return this.url(relativePath);
   }
   async exists(fileName, targetDir) {
@@ -105,10 +140,11 @@ class R2Storage extends StorageBase {
         const key = this.key(relativePath);
         const object = await bucket.head(key);
         if (!object) return res.status(404).end();
-        res.setHeader(
-          'Content-Type',
-          object.httpMetadata?.contentType || 'application/octet-stream',
-        );
+        if (!res.getHeader('Content-Type'))
+          res.setHeader(
+            'Content-Type',
+            object.httpMetadata?.contentType || 'application/octet-stream',
+          );
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('ETag', object.httpEtag);
         res.setHeader('Accept-Ranges', 'bytes');

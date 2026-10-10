@@ -79,9 +79,14 @@ production data, or public content endpoints are implemented yet.
 
 ## Remaining work
 
-A local full-release diagnostic bundle has reached Ghost's database migration
-stage after loading configuration, Express, and Bookshelf. This diagnostic is
-still under development and does not establish successful Ghost boot. The beta
+A local full-release diagnostic bundle now completes Ghost 6.69.0 boot with the
+frontend and backend enabled. The homepage, Admin HTML, site API, RSS, and sitemap
+return HTTP 200 in the production Workers runtime. Owner onboarding and login return HTTP 201. Authenticated draft creation,
+publishing, and rendering the resulting public post pass locally, as do the tags,
+members, newsletters, tiers, and settings read APIs. Image uploads through the Admin API and byte-for-byte R2 retrieval also pass.
+Admin assets, scheduled publishing, restart persistence, and external integrations
+are still being verified. These results do not establish a usable
+Ghost installation. The beta
 `cf dev` runner currently fails with a code-generation error; production bundles
 are being tested directly in the local Workers runtime.
 
@@ -106,3 +111,27 @@ To check the unchanged Ghost adapter manager against this R2 class:
 ```sh
 GHOST_RELEASE_DIR=/absolute/path/to/installed/ghost pnpm storage:check
 ```
+
+## Release bundle diagnostic
+
+Build an installed official Ghost release without editing its source files:
+
+```sh
+node scripts/build-ghost.cjs /absolute/path/to/installed/ghost ./artifacts/ghost
+```
+
+The builder links migrations, internal apps, theme checks, and adapters statically;
+preserves class names used by Ghost events; precompiles bundled Handlebars views;
+and imports precompiled Undici WASM. It precompiles the upstream Admin JSON
+schemas with their defaults and validation behavior, and schedules Bluebird
+callbacks with native Promises to work within Durable Object transaction gates. The result requires a Worker bootstrap that
+provides configuration, filesystem assets, bindings, and the HTTP bridge. That
+bootstrap is still under development. This command is not a deployment installer.
+Uploaded theme compilation and gift preview image composition remain incomplete.
+
+SQLite bulk inserts use modern VALUES statements and pack large scalar binding
+sets into one JSON parameter, retaining statement atomicity. Durable task records
+retain retries, cancellation, recurrence, and identity across object recreation.
+The jobs and routes adapters inherit Ghost's own base classes supplied by the
+release builder. Cloudflare Images replaces ordinary native image resizing; its
+full image and gift workflow remains to be verified.
