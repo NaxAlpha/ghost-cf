@@ -211,7 +211,8 @@ HTTP integrations and complete feature parity remain unfinished. Real Chrome
 checks pass owner creation, native email device verification, authenticated
 Admin, draft saving, publication, and public rendering. Live checks also pass
 member signup email, magic-link verification, signed member sessions, data export,
-route and redirect downloads, feeds, and sitemaps.
+route and redirect downloads, feeds, and sitemaps. An isolated local check also
+passes JSON article import, public rendering and persistence after runtime restart.
 
 After initializing the owner privately, set `GHOST_CF_PUBLIC=true` to serve the
 publication without the test header. Set `GHOST_CF_DOMAIN` to attach a custom

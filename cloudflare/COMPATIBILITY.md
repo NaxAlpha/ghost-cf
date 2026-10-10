@@ -14,11 +14,11 @@ experimental port with a working public publication, not complete Ghost parity.
 | Themes                     | Actual uploaded-theme validation, activation, binary assets, ZIP download and restart persistence pass locally. Third-party Handlebars parity remains incomplete.                                                                  |
 | Scheduling                 | Native Durable Object alarm publishing and object-reset recovery pass.                                                                                                                                                             |
 | Routes and redirects       | Persistent adapters work; production downloads pass.                                                                                                                                                                               |
-| Export                     | Production data export passes; full import and version-upgrade migration coverage remain unfinished.                                                                                                                               |
+| Export                     | Production data export passes. Local JSON article import, public rendering and persistence after restart pass; full archive/member import and version-upgrade coverage remain unfinished.                                          |
 | Social Web                 | Optional hosted Ghost backend passes registration, Admin onboarding, WebFinger and NodeInfo. Federation workflows and a Cloudflare-hosted backend remain unfinished.                                                               |
-| Newsletters                | Mailgun provider configuration and live bulk delivery remain unfinished. Cloudflare transactional email is not a bulk-mail replacement.                                                                                            |
-| Paid memberships and gifts | Stripe account configuration and end-to-end payment/webhook checks remain unfinished. Gift preview rendering passes.                                                                                                               |
-| Analytics                  | Ghost's Tinybird/traffic analytics integration remains unconfigured. Native Cloudflare analytics adapters remain future work.                                                                                                      |
+| Newsletters                | Mailgun is intentionally unconfigured for this deployment at the owner's request; live bulk delivery remains unverified. Cloudflare transactional email is not a bulk-mail replacement.                                            |
+| Paid memberships and gifts | Stripe is intentionally unconfigured for this deployment at the owner's request; end-to-end payment/webhook checks remain unverified. Gift preview rendering passes.                                                               |
+| Analytics                  | Ghost's Tinybird integration is intentionally unconfigured for this deployment at the owner's request. Native Cloudflare analytics adapters remain future work.                                                                    |
 | External integrations      | Trusted default HTTP works. User-supplied URLs still encounter unsupported custom DNS lookup; their SSRF protection has been preserved.                                                                                            |
 | Free hosting               | The deployed Worker is about 31.3 MiB uncompressed, within the current 64 MiB limit on both plans. Native general-recipient Email Sending requires Workers Paid. Free CPU viability and workload quotas have not been established. |
 | Scale                      | One publication uses one database object and Ghost singleton. Read caching and measured database throughput still need work.                                                                                                       |
@@ -33,3 +33,15 @@ after publication becomes public. Internal runtime files are not exposed. Inbox
 messages are retained until explicitly deleted.
 
 Current limit references: [Workers](https://developers.cloudflare.com/workers/platform/limits/), [Durable Objects](https://developers.cloudflare.com/durable-objects/platform/limits/), and [Email Service](https://developers.cloudflare.com/email-service/).
+
+User-controlled outbound URLs need connection-time address validation, including
+redirect targets. Workers' Node HTTP implementation rejects the custom `lookup`
+option used by Ghost. Resolving a hostname first and then calling global `fetch`
+would permit a second DNS resolution and would not preserve upstream DNS-rebinding
+protection. The port therefore keeps this protection and reports request errors.
+
+[Workers VPC Networks](https://developers.cloudflare.com/workers-vpc/configuration/vpc-networks/)
+can route public traffic through Gateway, but their documented TCP API currently
+supports plaintext only. A VPC binding is not yet a validated substitute for
+Ghost's hostname-verified HTTPS connections pinned to a vetted IP. No account-wide
+Gateway policies or private-network resources were changed for this investigation.
