@@ -26,6 +26,7 @@ function collect(relative, accept = () => true) {
 collect('core/shared/config', (file) => file.endsWith('.json'));
 collect('core', (file) => !file.includes('/built/') && /\.(hbs|html|css|json)$/.test(file));
 collect('core/frontend/public');
+collect('core/server/web/gift-preview', (file) => /\.(png|ttf)$/.test(file));
 collect('content/themes');
 collect('node_modules/@tryghost/i18n/locales');
 files['/tmp/ghost/node_modules/jsdom/lib/jsdom/browser/default-stylesheet.css'] = fs
@@ -47,6 +48,9 @@ const configuration = {
   database: { client: 'sqlite3', connection: { filename: ':memory:' } },
   logging: { transports: ['stdout'] },
   sendWelcomeEmail: false,
+  ...(process.env.GHOST_CF_MAIL_FROM
+    ? { mail: { transport: 'cloudflare', from: process.env.GHOST_CF_MAIL_FROM } }
+    : {}),
   adapters: {
     storage,
     'route-settings': {
@@ -66,9 +70,17 @@ files['/tmp/ghost/config.production.json'] = Buffer.from(JSON.stringify(configur
 );
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(path.join(output, 'runtime-assets.json'), JSON.stringify(files));
+fs.mkdirSync(path.join(output, 'public/__ghost-cf'), { recursive: true });
+fs.writeFileSync(path.join(output, 'public/__ghost-cf/runtime-assets.json'), JSON.stringify(files));
 // Keep the sizeable Admin application outside the Worker JavaScript bundle.
 const adminAssets = path.join(root, 'core/built/admin/assets');
 if (fs.existsSync(adminAssets)) {
   fs.cpSync(adminAssets, path.join(output, 'public/ghost/assets'), { recursive: true });
 }
 console.log(JSON.stringify({ runtimeFiles: Object.keys(files).length, siteUrl: url.origin }));
+
+fs.mkdirSync(path.join(output, 'public/__ghost-cf/fonts'), { recursive: true });
+fs.copyFileSync(
+  path.join(root, 'core/server/web/gift-preview/Inter.ttf'),
+  path.join(output, 'public/__ghost-cf/fonts/Inter.ttf'),
+);

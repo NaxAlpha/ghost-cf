@@ -4,9 +4,9 @@ import { DurableObject } from 'cloudflare:workers';
 import { timingSafeEqual } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { rasterizeSvg } from '../src/svg-renderer.mjs';
 import taskModule from '../src/durable-tasks.cjs';
 import boot from '../artifacts/ghost/ghost-platform-boot.mjs';
-import assets from '../artifacts/ghost/runtime-assets.json';
 
 import requestModule from '../src/node-request.cjs';
 const { nodeRequest } = requestModule;
@@ -25,6 +25,9 @@ export class GhostPublication extends DurableObject {
       DO_STORAGE: this.ctx.storage,
       MEDIA: this.env.MEDIA,
       IMAGES: this.env.IMAGES,
+      EMAIL: this.env.EMAIL,
+      RASTERIZE_SVG: rasterizeSvg,
+      GIFT_FONT_URL: this.fontUrl,
       TASKS: this.tasks,
       APP: (request, response) => this.app(request, response),
       INTERNAL_FETCH: (request) => handleAsNodeRequest(2368, nodeRequest(request)),
@@ -32,13 +35,24 @@ export class GhostPublication extends DurableObject {
   }
   async initialize() {
     this.ready ??= (async () => {
+      const response = await this.env.ASSETS.fetch(
+        new Request('https://ghost-cf-assets/__ghost-cf/runtime-assets.json'),
+      );
+      if (!response.ok) throw new Error('Ghost runtime assets are missing');
+      const assets = await response.json();
+      const configuration = JSON.parse(
+        Buffer.from(assets['/tmp/ghost/config.production.json'], 'base64').toString(),
+      );
+      this.fontUrl = new URL('/__ghost-cf/fonts/Inter.ttf', configuration.url).href;
       for (const [filename, base64] of Object.entries(assets)) {
         mkdirSync(dirname(filename), { recursive: true });
         writeFileSync(filename, Buffer.from(base64, 'base64'));
       }
+      await boot.restoreThemes();
       return boot({ backend: true, frontend: true, server: false });
     })();
     this.app = await this.ready;
+    boot.getBindings().GIFT_FONT_URL = this.fontUrl;
   }
   async alarm() {
     return boot.withBindings(this.bindings(), async () => {
@@ -56,6 +70,9 @@ export class GhostPublication extends DurableObject {
 
 export default {
   async fetch(request, env, ctx) {
+    if (new URL(request.url).pathname === '/__ghost-cf/fonts/Inter.ttf') {
+      return env.ASSETS.fetch(request);
+    }
     // Protect experimental deployments, including the owner setup endpoint.
     const supplied = Buffer.from(request.headers.get('X-Ghost-CF-Test') || '');
     const expected = Buffer.from(env.TEST_TOKEN);

@@ -16,6 +16,7 @@ const adminSchemaRegistry = require('./compile-admin-schema.cjs').compileAdminSc
   root,
   outputRoot,
 );
+const mailTemplateRegistry = require('./compile-mail.cjs').compileMailTemplates(root, outputRoot);
 const skipped = new Set();
 const migrationRoot = path.join(root, 'core/server/data/migrations');
 const migrationFiles = [];
@@ -127,7 +128,9 @@ fs.writeFileSync(
   templateRegistryPath,
   'const specs={' +
     templateEntries.join(',') +
-    '};module.exports.compile=(input,options,env)=>{const key=require("node:crypto").createHash("sha256").update(input).digest("hex")+":"+Boolean(options.preventIndent);const spec=specs[key];if(!spec)throw new Error("Ghost template needs compilation: "+key);return env.template(spec);};',
+    '};module.exports.compile=(input,options,env)=>{const key=require("node:crypto").createHash("sha256").update(input).digest("hex")+":"+Boolean(options.preventIndent);const spec=specs[key];if(!spec)return require(' +
+    JSON.stringify(path.join(platformRoot, 'src/template-interpreter.cjs')) +
+    ').compile(input,options,env);return env.template(spec);};',
 );
 
 esbuild
@@ -144,7 +147,9 @@ esbuild
         JSON.stringify(path.resolve(platformRoot, 'src/context.cjs')) +
         ').withBindings; module.exports.getBindings=require(' +
         JSON.stringify(path.resolve(platformRoot, 'src/context.cjs')) +
-        ').getBindings;',
+        ').getBindings; module.exports.restoreThemes=require(' +
+        JSON.stringify(path.join(platformRoot, 'src/theme-storage.cjs')) +
+        ').restoreThemes;',
       resolveDir: root,
       sourcefile: 'ghost-platform-entry.cjs',
     },
@@ -218,6 +223,58 @@ esbuild
           });
           build.onLoad({ filter: /\.(?:js|cjs|mjs)$/, namespace: 'file' }, async (args) => {
             let source = fs.readFileSync(args.path, 'utf8');
+            if (
+              args.path === path.join(root, 'core/server/services/staff/staff-service-emails.js') ||
+              args.path ===
+                path.join(root, 'core/server/services/comments/comments-service-email-renderer.js')
+            ) {
+              const directory = path.join(path.dirname(args.path), 'email-templates');
+              const templates = fs
+                .readdirSync(directory)
+                .filter((name) => name.endsWith('.txt.js'));
+              const registry =
+                '{' +
+                templates
+                  .map(
+                    (name) =>
+                      JSON.stringify(name.slice(0, -7)) +
+                      ':require(' +
+                      JSON.stringify(path.join(directory, name)) +
+                      ')',
+                  )
+                  .join(',') +
+                '}';
+              const original = 'require(`./email-templates/${templateName}.txt`)';
+              if (!source.includes(original))
+                throw new Error('Ghost notification template loader changed');
+              source = source.replaceAll(original, '(' + registry + ')[templateName]');
+            }
+            if (
+              args.path === path.join(root, 'node_modules/@tryghost/nodemailer/lib/nodemailer.js')
+            ) {
+              const original = 'switch (transport) {';
+              if (!source.includes(original))
+                throw new Error('Ghost mail transport factory changed');
+              source = source.replace(
+                original,
+                'if (transport === "cloudflare") return require(' +
+                  JSON.stringify(path.join(platformRoot, 'src/mail-transport.cjs')) +
+                  ').createMailTransport({addressParser:require(' +
+                  JSON.stringify(createRequire(args.path).resolve('nodemailer/lib/addressparser')) +
+                  ')});' +
+                  original,
+              );
+            }
+            if (args.path === path.join(root, 'core/server/lib/mail/email-content-generator.js')) {
+              const original = 'const compiled = _.template(content);';
+              if (!source.includes(original)) throw new Error('Ghost mail compiler changed');
+              source = source.replace(
+                original,
+                'const compiled = require(' +
+                  JSON.stringify(mailTemplateRegistry) +
+                  ').compile(content);',
+              );
+            }
             if (args.path.endsWith('/@tryghost/admin-api-schema/build/utils/json-schema.js')) {
               const start = source.indexOf('const require =');
               const end = source.indexOf('export async function validate');
@@ -278,6 +335,14 @@ esbuild
                     )
                     .join(',') +
                   '};',
+              );
+            }
+            if (args.path === path.join(root, 'core/server/services/themes/theme-storage.js')) {
+              source = source.replace(
+                'module.exports = ThemeStorage;',
+                'module.exports = require(' +
+                  JSON.stringify(path.join(platformRoot, 'src/theme-storage.cjs')) +
+                  ').persistentThemeStorage(ThemeStorage);',
               );
             }
             if (args.path.endsWith('/handlebars/dist/cjs/handlebars/compiler/compiler.js'))

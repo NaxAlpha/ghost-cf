@@ -81,6 +81,6 @@ module.exports = {
   resizeFromPath,
   DEFAULT_PROCESSING_TIMEOUT_SECONDS: 0,
   getSharp() {
-    throw new Error('Gift preview composition needs the Cloudflare Images renderer');
+    return require('./gift-image.cjs').giftSharp;
   },
 };

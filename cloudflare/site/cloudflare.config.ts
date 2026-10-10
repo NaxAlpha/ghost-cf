@@ -18,6 +18,7 @@ export default defineConfig({
       ASSETS: bindings.assets(),
       IMAGES: bindings.images(),
       MEDIA: bindings.r2({ name: bucket }),
+      ...(process.env.GHOST_CF_MAIL_FROM ? { EMAIL: bindings.sendEmail() } : {}),
       TEST_TOKEN: bindings.secret(),
     },
   },

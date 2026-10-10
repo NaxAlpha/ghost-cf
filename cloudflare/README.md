@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Twenty-one local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Twenty-seven local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -129,7 +129,17 @@ callbacks with native Promises to work within Durable Object transaction gates. 
 provides configuration, filesystem assets, bindings, and the HTTP bridge. That
 bootstrap is available in `site/`; it is still experimental. This command alone
 is not a deployment installer.
-Uploaded theme compilation and gift preview image composition remain incomplete.
+Uploaded themes use an AST interpreter for newly uploaded Handlebars templates,
+while bundled templates remain precompiled. Upstream theme validation remains
+enabled. Theme files persist in R2 with manifests in SQLite Durable Object
+storage and restore before Ghost boots. Local upload, activation, rendering,
+ZIP download, binary asset delivery, and complete runtime restart pass. Broad
+third-party theme compatibility still needs verification.
+
+The unchanged gift image renderer produces a valid 1200×630 PNG in a remote
+Worker. Cloudflare Images supplies raster composition and text, with a statically
+linked Resvg WASM module rasterizing SVG overlays. Exact font-weight parity and
+the complete gift purchase flow still need verification.
 
 SQLite bulk inserts use modern VALUES statements and pack large scalar binding
 sets into one JSON parameter, retaining statement atomicity. Durable task records
@@ -169,6 +179,22 @@ Durable Object storage. Admin assets use Workers Static Assets. Owner welcome
 email is disabled until mail transport is configured.
 
 The current full bundle exceeds the Workers free-plan size limit. A deployment
-on an already-paid account is not evidence of free-tier compatibility. Theme
-uploads, gift previews, outgoing HTTP integrations, email, and complete browser
-flows remain unfinished.
+on an already-paid account is not evidence of free-tier compatibility. Outgoing
+HTTP integrations, live email delivery, and complete browser flows remain
+unfinished.
+
+## Transactional email
+
+Set `GHOST_CF_MAIL_FROM` to a sender address on a domain onboarded to Cloudflare
+Email Service when running both `prepare-assets.cjs` and the site build or
+deployment. This selects Ghost's `cloudflare` transport and adds the native
+`EMAIL` binding. The transport preserves named recipients, reply addresses,
+allowed custom headers, in-memory attachments, and provider delivery errors.
+Ghost's HTML mail templates compile at build time, avoiding runtime code
+generation; notification text templates are linked statically.
+
+The real password-reset API returns HTTP 200 through Cloudflare's local email
+simulator. This verifies the Ghost mail path, not live delivery or every mail
+workflow. Cloudflare Email Service is for transactional messages; Ghost
+newsletters still require a supported bulk-mail provider. Do not configure a
+real sender for disposable tests unless delivery is intended.

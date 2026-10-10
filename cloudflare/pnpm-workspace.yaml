@@ -5,6 +5,7 @@ allowBuilds:
   'esbuild@0.25.12': true
   'workerd@1.20260918.1 || 1.20260921.1 || 1.20261006.1': true
 catalog:
+  '@resvg/resvg-wasm': '2.6.2'
   '@tryghost/bookshelf-transaction-events': '2.3.16'
   'bookshelf': '1.2.0'
   '@cloudflare/vite-plugin': '2.0.0-beta.sha-91c870c02'
