@@ -59,7 +59,10 @@ class DurableClient extends D1Client {
   }
 }
 
-function createDurableDatabase() {
-  return makeKnex(new DurableClient({ client: DurableClient }));
+function createDurableDatabase(config = {}) {
+  const database = makeKnex(new DurableClient({ ...config, client: DurableClient }));
+  // Bookshelf validates this public function name, including in minified builds.
+  Object.defineProperty(database, 'name', { value: 'knex' });
+  return database;
 }
 module.exports = { DurableClient, createDurableDatabase };

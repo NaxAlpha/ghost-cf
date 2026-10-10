@@ -27,6 +27,9 @@ function normalizeBinding(value) {
 class D1Client extends SQLiteClient {
   constructor(config = {}) {
     super({ ...config, connection: { filename: ':d1:' }, useNullAsDefault: true });
+    // Ghost's DatabaseInfo selects dialect behavior from this value, rather
+    // than from the compiler prototype. This driver implements SQLite SQL.
+    this.config.client = 'sqlite3';
   }
 
   initializeDriver() {

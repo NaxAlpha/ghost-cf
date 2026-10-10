@@ -4,6 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 const knex = require('knex');
 const { D1Client, normalizeBinding } = require('../src/d1-client.cjs');
 const { withBindings, getBindings } = require('../src/context.cjs');
+const { createDurableDatabase } = require('../src/durable-client.cjs');
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
@@ -39,6 +40,7 @@ function database() {
 test('retains Knex SQLite CRUD response shapes without a native driver', async () => {
   const { DB, sqlite } = database();
   const db = knex({ client: D1Client });
+  assert.equal(db.client.config.client, 'sqlite3');
   await withBindings({ DB }, async () => {
     await db.schema.createTable('posts', (table) => {
       table.increments('id');
@@ -53,6 +55,14 @@ test('retains Knex SQLite CRUD response shapes without a native driver', async (
     assert.equal((await db('posts')).length, 0);
   });
   sqlite.close();
+});
+
+test('preserves Bookshelf factory identity and Ghost database configuration', () => {
+  const db = createDurableDatabase({ debug: true });
+  assert.equal(db.name, 'knex');
+  assert.equal(db.client.config.client, 'sqlite3');
+  assert.equal(db.client.config.debug, true);
+  assert.doesNotThrow(() => require('bookshelf')(db));
 });
 
 test('rejects interactive transactions before running any callback or writes', () => {
