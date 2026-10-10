@@ -182,7 +182,8 @@ resolves AJV through the upstream schema package, and hydrates the filesystem
 assets at their actual virtual paths. A fresh official-release installation passes
 local boot, schema, staff/member authentication, publishing, R2 media, uploaded
 themes and restart checks. pnpm deduplication reduces the compressed Ghost bundle
-from about 8.2 MiB to 7.5 MiB; it still exceeds the free-plan limit.
+from about 8.2 MiB to 7.5 MiB. The deployed Worker is about 31.3 MiB
+uncompressed, within the current 64 MiB limit for both Workers plans.
 
 Set `CLOUDFLARE_ACCOUNT_ID` to select the intended account. Create the dedicated
 bucket using `cf`, then deploy with `--secrets-file` pointing to a private JSON
@@ -201,8 +202,11 @@ each instance restores ephemeral files and uses its live storage handle. Local
 explicit object-reset checks pass uploaded-theme rendering and native alarm
 publication; a subsequent complete runtime restart retains the theme and post.
 
-The current full bundle exceeds the Workers free-plan size limit. A deployment
-on an already-paid account is not evidence of free-tier compatibility. Outgoing
+The bundle fits the [current Workers size limit](https://developers.cloudflare.com/workers/platform/limits/).
+A deployment on an already-paid account is not evidence of free-tier compatibility.
+Native [Email Sending](https://developers.cloudflare.com/email-service/) to general
+recipients currently requires Workers Paid; free operation needs an alternative
+mail provider or a different supported sending arrangement. Outgoing
 HTTP integrations and complete feature parity remain unfinished. Real Chrome
 checks pass owner creation, native email device verification, authenticated
 Admin, draft saving, publication, and public rendering. Live checks also pass
