@@ -9,6 +9,7 @@ test('admin inbox rejects public access and stores only the configured recipient
     INBOX_ADDRESS: 'owner@example.com',
     MAIL: {
       put: async (key, body) => {
+        assert.ok(body instanceof ArrayBuffer, 'R2 receives bounded, known-length MIME bytes');
         saved = { key, text: await new Response(body).text() };
       },
       list: async () => ({ objects: [], truncated: false }),

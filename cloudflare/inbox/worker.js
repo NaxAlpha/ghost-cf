@@ -25,7 +25,8 @@ export default {
       return;
     }
     // Await durable storage before accepting delivery. Do not log credentials in mail.
-    await env.MAIL.put(`${prefix}${Date.now()}-${crypto.randomUUID()}.eml`, message.raw, {
+    const raw = await new Response(message.raw).arrayBuffer();
+    await env.MAIL.put(`${prefix}${Date.now()}-${crypto.randomUUID()}.eml`, raw, {
       httpMetadata: { contentType: 'message/rfc822' },
       customMetadata: { receivedAt: new Date().toISOString() },
     });
