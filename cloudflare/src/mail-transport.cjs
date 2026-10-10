@@ -16,10 +16,10 @@ function createMailTransport({ addressParser, htmlToText }) {
     if (list.length !== 1) throw new Error(field + ' requires one email address');
     return list[0];
   }
-  // Native Workers currently rejects an address object whose optional name is
-  // absent. The documented string form preserves unnamed addresses reliably.
+  // Native Workers currently requires name even though the type marks it optional.
+  // Include an empty display name consistently, including reply-to addresses.
   function wireAddress(address) {
-    return address.name ? address : address.email;
+    return { email: address.email, name: address.name || '' };
   }
   return {
     async sendMail(message) {

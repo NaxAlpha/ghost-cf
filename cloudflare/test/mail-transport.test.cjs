@@ -37,9 +37,9 @@ test('maps Ghost mail, named recipients, headers and binary attachments to the n
       }),
   );
   assert.equal(sent.from.name, 'Ghost');
-  assert.equal(sent.to[0], 'reader@example.test');
-  assert.deepEqual(sent.bcc, ['audit@example.test']);
-  assert.equal(sent.replyTo, 'reply@example.test');
+  assert.deepEqual(sent.to[0], { email: 'reader@example.test', name: '' });
+  assert.deepEqual(sent.bcc, [{ email: 'audit@example.test', name: '' }]);
+  assert.deepEqual(sent.replyTo, { email: 'reply@example.test', name: '' });
   assert.equal(sent.to[1].name, 'Reader');
   assert.deepEqual(sent.headers, { 'X-Ghost-Test': 'yes' });
   assert.deepEqual(sent.attachments[0], {
