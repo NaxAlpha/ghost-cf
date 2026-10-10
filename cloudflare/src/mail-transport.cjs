@@ -16,6 +16,11 @@ function createMailTransport({ addressParser, htmlToText }) {
     if (list.length !== 1) throw new Error(field + ' requires one email address');
     return list[0];
   }
+  // Native Workers currently rejects an address object whose optional name is
+  // absent. The documented string form preserves unnamed addresses reliably.
+  function wireAddress(address) {
+    return address.name ? address : address.email;
+  }
   return {
     async sendMail(message) {
       const binding = getBindings().EMAIL;
@@ -31,14 +36,14 @@ function createMailTransport({ addressParser, htmlToText }) {
         headers[name] = value;
       }
       const payload = {
-        from: single(message.from, 'from'),
-        to,
+        from: wireAddress(single(message.from, 'from')),
+        to: to.map(wireAddress),
         subject: message.subject,
         ...(message.html !== undefined ? { html: message.html } : {}),
         ...(message.text !== undefined ? { text: message.text } : {}),
-        ...(cc.length ? { cc } : {}),
-        ...(bcc.length ? { bcc } : {}),
-        ...(message.replyTo ? { replyTo: single(message.replyTo, 'replyTo') } : {}),
+        ...(cc.length ? { cc: cc.map(wireAddress) } : {}),
+        ...(bcc.length ? { bcc: bcc.map(wireAddress) } : {}),
+        ...(message.replyTo ? { replyTo: wireAddress(single(message.replyTo, 'replyTo')) } : {}),
         ...(Object.keys(headers).length ? { headers } : {}),
       };
       if (
