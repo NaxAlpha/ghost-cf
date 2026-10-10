@@ -84,6 +84,7 @@ export default {
       const other = ctx.exports.GhostDatabase.getByName(`${name}-other`);
       try {
         const checks = await site.checks();
+        Object.assign(checks, await site.checkTransactionEvents());
         if (request.headers.get('content-type')?.includes('application/json')) {
           const schema = await request.json();
           if (!Array.isArray(schema.queries) || !Array.isArray(schema.tables)) {

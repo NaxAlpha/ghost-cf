@@ -32,11 +32,13 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - R2 writes, reads, and deletion through a Ghost-style storage contract.
 - Durable Object async transaction commit, thrown and explicit rollback,
   20 concurrent increments without lost updates, and publication isolation.
+- Actual Bookshelf model CRUD and Ghost's transaction-event plugin, including
+  rollback on simulated native commit failure with no false commit event.
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Seven local tests cover D1 query behavior, bindings, media path handling, and
-build-time Handlebars compilation. Type checking and both Worker probe bundles
+Nine local tests cover D1 queries, bindings, R2 streaming and byte ranges,
+subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
 testing. Test names and credentials are deliberately absent from this repository.
@@ -80,7 +82,8 @@ production data, or public content endpoints are implemented yet.
 1. Bundle and boot the official Ghost release with explicit platform seams for
    configuration, filesystem assets, dynamic dependencies, and failure handling.
 2. Verify the real schema, migrations, Bookshelf models, and nested transactions.
-3. Connect R2 to Ghost's adapter manager and implement complete HTTP media behavior.
+3. Connect the verified R2 adapter-manager integration to full Ghost boot, and
+   finish media HTTP parity.
 4. Integrate precompiled themes and support theme uploads without request-time eval.
 5. Replace native image transforms and durable background jobs; validate scheduled
    publishing, email, newsletters, webhooks, memberships, and payment integrations.
@@ -91,3 +94,9 @@ Free operation is a target, not a promise. Workers, SQLite Durable Objects, D1,
 and R2 have quotas, and Ghost's email, analytics, payments, and image processing
 may need additional services. Full feature parity and free-tier CPU viability
 have not been established.
+
+To check the unchanged Ghost adapter manager against this R2 class:
+
+```sh
+GHOST_RELEASE_DIR=/absolute/path/to/installed/ghost pnpm storage:check
+```

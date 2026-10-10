@@ -6,14 +6,18 @@
     "dev": "cf dev",
     "build": "cf build",
     "deploy": "cf deploy",
-    "typecheck": "cf workers types && tsc",
+    "typecheck": "cf workers types && tsc6",
     "test": "node --test test/*.test.cjs",
     "probe:ghost": "node scripts/probe-ghost.cjs",
     "themes:compile": "node scripts/precompile-theme.cjs",
-    "schema:compile": "node scripts/compile-schema.cjs"
+    "schema:compile": "node scripts/compile-schema.cjs",
+    "storage:check": "node scripts/check-storage.cjs"
   },
   "dependencies": {
+    "@tryghost/bookshelf-transaction-events": "catalog:",
+    "bookshelf": "catalog:",
     "express": "catalog:",
+    "ghost-storage-base": "catalog:",
     "handlebars": "catalog:",
     "knex": "catalog:"
   },

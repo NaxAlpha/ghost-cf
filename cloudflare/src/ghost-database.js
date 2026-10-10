@@ -1,6 +1,8 @@
 import { DurableObject } from 'cloudflare:workers';
 import context from './context.cjs';
 import durable from './durable-client.cjs';
+import bookshelf from 'bookshelf';
+import transactionEvents from '@tryghost/bookshelf-transaction-events';
 
 const { withBindings } = context;
 const { createDurableDatabase } = durable;
@@ -76,6 +78,67 @@ export class GhostDatabase extends DurableObject {
   }
   value() {
     return this.ctx.storage.sql.exec('SELECT value FROM probe_counter WHERE id = 1').one().value;
+  }
+  async checkTransactionEvents() {
+    const storage = this.ctx.storage;
+    let settled = false;
+    let failCommit = false;
+    const binding = {
+      sql: storage.sql,
+      transaction: (callback) =>
+        storage
+          .transaction(async () => {
+            const result = await callback();
+            if (failCommit) throw new Error('native commit failure probe');
+            return result;
+          })
+          .then(
+            (value) => {
+              settled = true;
+              return value;
+            },
+            (error) => {
+              settled = true;
+              throw error;
+            },
+          ),
+    };
+    return withBindings({ DO_STORAGE: binding }, async () => {
+      const db = createDurableDatabase();
+      const models = bookshelf(db);
+      models.plugin(transactionEvents);
+      const Counter = models.Model.extend({ tableName: 'probe_counter' });
+      const checks = {};
+      await db('probe_counter').where({ id: 1 }).update({ value: 0 });
+      let eventAfterCommit = false;
+      await models.transaction(async (trx) => {
+        trx.on('committed', (success) => {
+          eventAfterCommit = success && settled;
+        });
+        const counter = await Counter.forge({ id: 1 }).fetch({ transacting: trx });
+        await counter.save({ value: 1 }, { transacting: trx, method: 'update' });
+      });
+      checks.bookshelfCrud = (await Counter.forge({ id: 1 }).fetch()).get('value') === 1;
+      checks.eventsAfterNativeCommit = eventAfterCommit;
+      settled = false;
+      failCommit = true;
+      let reportedCommitted = false;
+      try {
+        await models.transaction(async (trx) => {
+          trx.on('committed', (success) => {
+            if (success) reportedCommitted = true;
+          });
+          await trx('probe_counter').where({ id: 1 }).update({ value: 99 });
+        });
+      } catch (error) {
+        checks.nativeCommitFailureRollback =
+          error.message === 'native commit failure probe' &&
+          (await db('probe_counter').first()).value === 1;
+      }
+      checks.noFalseCommitEvent = !reportedCommitted;
+      await db('probe_counter').where({ id: 1 }).update({ value: 0 });
+      return checks;
+    });
   }
   async checkSchema(schema) {
     return withBindings({ DO_STORAGE: this.ctx.storage }, async () => {

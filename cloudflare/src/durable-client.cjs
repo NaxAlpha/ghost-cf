@@ -10,7 +10,10 @@ class DurableTransaction extends Transaction {
   async _evaluateContainer(config, container) {
     const storage = getBindings().DO_STORAGE;
     try {
-      return await storage.transaction(() => super._evaluateContainer(config, container));
+      this._nativeTransaction = storage.transaction(() =>
+        super._evaluateContainer(config, container),
+      );
+      return await this._nativeTransaction;
     } catch (error) {
       if (error instanceof ExplicitRollback && this.doNotRejectOnRollback) return undefined;
       throw error;
@@ -21,6 +24,7 @@ class DurableTransaction extends Transaction {
   async commit(_connection, value) {
     this._completed = true;
     this._resolver(value);
+    await this._nativeTransaction;
   }
   async release(connection, value) {
     return this.commit(connection, value);
@@ -28,6 +32,9 @@ class DurableTransaction extends Transaction {
   async rollback(_connection, error) {
     this._completed = true;
     this._rejecter(error === undefined ? new ExplicitRollback('Explicit rollback') : error);
+    // Ghost's transaction-events plugin awaits rollback before emitting. Preserve
+    // its resolved return value while the transaction itself rejects to callers.
+    await this._nativeTransaction.catch(() => undefined);
   }
   async rollbackTo(connection, error) {
     return this.rollback(connection, error);
