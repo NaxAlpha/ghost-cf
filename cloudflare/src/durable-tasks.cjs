@@ -4,9 +4,16 @@ const PREFIX = 'ghost-cf:task:';
 const INDEX = 'ghost-cf:task-index:';
 
 class DurableTasks {
-  constructor(storage) {
+  constructor(storage, registry = { handlers: new Map() }) {
     this.storage = storage;
-    this.handlers = new Map();
+    this.registry = registry;
+    this.handlers = registry.handlers;
+  }
+  get nextCron() {
+    return this.registry.nextCron;
+  }
+  set nextCron(value) {
+    this.registry.nextCron = value;
   }
   handle(kind, handler) {
     this.handlers.set(kind, handler);

@@ -1,6 +1,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { DurableTasks } = require('../src/durable-tasks.cjs');
+const { withBindings, getBindings } = require('../src/context.cjs');
 
 function storage() {
   const data = new Map();
@@ -74,6 +75,37 @@ test('delivers persisted tasks after object recreation and clears their alarm', 
   assert.deepEqual(delivered, [42]);
   assert.equal(durable.data.size, 0);
   assert.equal(await durable.getAlarm(), null);
+});
+
+test('reuses module handlers after recreation while discarding the old storage handle', async () => {
+  const durable = storage();
+  let retired = false;
+  const original = new Proxy(durable, {
+    get(target, key) {
+      const value = target[key];
+      return typeof value === 'function'
+        ? (...args) => {
+            if (retired) throw new Error('Retired object storage');
+            return value.apply(target, args);
+          }
+        : value;
+    },
+  });
+  const registry = { handlers: new Map() };
+  const first = new DurableTasks(original, registry);
+  let delivered;
+  first.handle('job', () => {
+    delivered = getBindings().DO_STORAGE;
+  });
+  first.nextCron = (_cron, now) => now + 1000;
+  const now = Date.now();
+  await first.schedule('recurring', now, { kind: 'job' }, { kind: 'cron', cron: '* * * * *' });
+  retired = true;
+  const resumed = new DurableTasks(durable, registry);
+  await withBindings({ DO_STORAGE: durable }, () => resumed.run(now + 1));
+  assert.equal(delivered, durable);
+  assert.equal(await resumed.has('recurring'), true);
+  assert.equal(await durable.getAlarm(), now + 1001);
 });
 
 test('retains failures for retry and honors cancellation across recreation', async () => {

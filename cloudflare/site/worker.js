@@ -14,11 +14,16 @@ const { nodeRequest } = requestModule;
 const server = createServer((request, response) => boot.getBindings().APP(request, response));
 server.listen(2368);
 
+// An object can be recreated while this module and Ghost's singleton survive.
+// Keep code handlers and the app shared, but use each new object's live storage.
+const taskRegistry = { handlers: new Map() };
+let publicationReady;
+
 // Ghost is a singleton: deploy one Worker per publication, with one named object.
 export class GhostPublication extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
-    this.tasks = new taskModule.DurableTasks(ctx.storage);
+    this.tasks = new taskModule.DurableTasks(ctx.storage, taskRegistry);
   }
   bindings() {
     return {
@@ -43,15 +48,18 @@ export class GhostPublication extends DurableObject {
       const configuration = JSON.parse(
         Buffer.from(assets['/tmp/ghost/config.production.json'], 'base64').toString(),
       );
-      this.fontUrl = new URL('/__ghost-cf/fonts/Inter.ttf', configuration.url).href;
+      const fontUrl = new URL('/__ghost-cf/fonts/Inter.ttf', configuration.url).href;
       for (const [filename, base64] of Object.entries(assets)) {
         mkdirSync(dirname(filename), { recursive: true });
         writeFileSync(filename, Buffer.from(base64, 'base64'));
       }
       await boot.restoreThemes();
-      return boot({ backend: true, frontend: true, server: false });
+      publicationReady ??= boot({ backend: true, frontend: true, server: false });
+      return { app: await publicationReady, fontUrl };
     })();
-    this.app = await this.ready;
+    const publication = await this.ready;
+    this.app = publication.app;
+    this.fontUrl = publication.fontUrl;
     boot.getBindings().GIFT_FONT_URL = this.fontUrl;
   }
   async alarm() {

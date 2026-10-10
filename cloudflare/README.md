@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Twenty-eight local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Twenty-nine local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -177,6 +177,11 @@ hydrates release assets, including binary theme files, into ephemeral storage;
 media persists in R2, while routing settings and background tasks persist in
 Durable Object storage. Admin assets use Workers Static Assets. Owner welcome
 email is disabled until mail transport is configured.
+
+Ghost's app and task handlers survive object recreation within an isolate, while
+each instance restores ephemeral files and uses its live storage handle. Local
+explicit object-reset checks pass uploaded-theme rendering and native alarm
+publication; a subsequent complete runtime restart retains the theme and post.
 
 The current full bundle exceeds the Workers free-plan size limit. A deployment
 on an already-paid account is not evidence of free-tier compatibility. Outgoing
