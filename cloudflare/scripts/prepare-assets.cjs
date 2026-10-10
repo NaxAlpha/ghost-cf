@@ -11,6 +11,9 @@ if (url.protocol !== 'https:' || url.pathname !== '/' || url.search || url.hash)
 const root = path.resolve(releaseDirectory);
 const output = path.resolve(outputDirectory);
 const files = {};
+const packageAssets = path.join(output, 'ghost-runtime-package-assets.json');
+if (fs.existsSync(packageAssets))
+  Object.assign(files, JSON.parse(fs.readFileSync(packageAssets, 'utf8')));
 function collect(relative, accept = () => true) {
   const directory = path.join(root, relative);
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

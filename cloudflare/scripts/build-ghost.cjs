@@ -11,6 +11,14 @@ if (!releaseDirectory || !outputDirectory)
   );
 const root = path.resolve(releaseDirectory);
 const outputRoot = path.resolve(outputDirectory);
+const releaseFiles = new Map();
+function releaseFile(relative) {
+  if (!releaseFiles.has(relative)) {
+    const logical = path.join(root, relative);
+    releaseFiles.set(relative, fs.existsSync(logical) ? fs.realpathSync(logical) : logical);
+  }
+  return releaseFiles.get(relative);
+}
 fs.mkdirSync(outputRoot, { recursive: true });
 const adminSchemaRegistry = require('./compile-admin-schema.cjs').compileAdminSchemas(
   root,
@@ -18,6 +26,31 @@ const adminSchemaRegistry = require('./compile-admin-schema.cjs').compileAdminSc
 );
 const mailTemplateRegistry = require('./compile-mail.cjs').compileMailTemplates(root, outputRoot);
 const skipped = new Set();
+const runtimePackageAssets = {};
+const runtimePackages = new Set();
+function collectPackageAssets(filename) {
+  const match = /^(.*\/node_modules\/(?:jsdom|@tryghost\/i18n))\//.exec(filename);
+  if (!match || runtimePackages.has(match[1])) return;
+  const directory = match[1];
+  runtimePackages.add(directory);
+  function add(file) {
+    runtimePackageAssets['/tmp/ghost/' + path.relative(root, file)] = fs
+      .readFileSync(file)
+      .toString('base64');
+  }
+  if (directory.endsWith('/jsdom')) {
+    add(path.join(directory, 'lib/jsdom/browser/default-stylesheet.css'));
+  } else {
+    function collect(dir) {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const file = path.join(dir, entry.name);
+        if (entry.isDirectory()) collect(file);
+        else if (entry.isFile()) add(file);
+      }
+    }
+    collect(path.join(directory, 'locales'));
+  }
+}
 const migrationRoot = path.join(root, 'core/server/data/migrations');
 const migrationFiles = [];
 function walk(dir) {
@@ -138,7 +171,11 @@ esbuild
     stdin: {
       contents:
         'require(' +
-        JSON.stringify(path.join(root, 'node_modules/bluebird')) +
+        JSON.stringify(
+          createRequire(
+            createRequire(path.join(root, 'package.json')).resolve('bookshelf'),
+          ).resolve('bluebird'),
+        ) +
         ').setScheduler((callback)=>Promise.resolve().then(callback)); require(' +
         JSON.stringify(path.join(root, 'node_modules/express')) +
         '); module.exports=require(' +
@@ -193,7 +230,9 @@ esbuild
             resolveDir: root,
           }));
           build.onResolve({ filter: /^ajv\/dist\// }, (args) => ({
-            path: createRequire(path.join(root, 'package.json')).resolve(args.path),
+            path: createRequire(
+              createRequire(path.join(root, 'package.json')).resolve('@tryghost/admin-api-schema'),
+            ).resolve(args.path),
           }));
           build.onResolve({ filter: /^css-tree$/ }, (args) => ({
             path: createRequire(args.importer).resolve('css-tree'),
@@ -207,7 +246,7 @@ esbuild
           });
           build.onResolve({ filter: /.*/ }, (args) => {
             if (
-              !/node_modules\/(consolidate\/lib\/consolidate\.js|knex\/lib\/dialects\/|express-hbs\/lib\/hbs\.js)/.test(
+              !/node_modules\/(consolidate\/lib\/consolidate\.js|knex\/lib\/dialects\/|express-hbs\/lib\/hbs\.js|@babel\/core\/lib\/config\/files\/module-types\.js)/.test(
                 args.importer,
               )
             )
@@ -222,8 +261,15 @@ esbuild
             }
           });
           build.onLoad({ filter: /\.(?:js|cjs|mjs)$/, namespace: 'file' }, async (args) => {
+            collectPackageAssets(args.path);
             let source = fs.readFileSync(args.path, 'utf8');
-            if (args.path === path.join(root, 'node_modules/@tryghost/request/lib/request.js')) {
+            if (args.path.endsWith('/dtrace-provider/dtrace-provider.js')) {
+              source = source.replace(
+                "require('./src/build/' + builds[i] + '/DTraceProviderBindings')",
+                '(()=>{throw new Error("Native DTrace is unavailable in Workers")})()',
+              );
+            }
+            if (args.path === releaseFile('node_modules/@tryghost/request/lib/request.js')) {
               const original = 'dnsLookup: cacheableLookup.lookup,';
               if (!source.includes(original))
                 throw new Error('Ghost default HTTP DNS configuration changed');
@@ -237,9 +283,9 @@ esbuild
                 );
             }
             if (
-              args.path === path.join(root, 'core/server/services/staff/staff-service-emails.js') ||
+              args.path === releaseFile('core/server/services/staff/staff-service-emails.js') ||
               args.path ===
-                path.join(root, 'core/server/services/comments/comments-service-email-renderer.js')
+                releaseFile('core/server/services/comments/comments-service-email-renderer.js')
             ) {
               const directory = path.join(path.dirname(args.path), 'email-templates');
               const templates = fs
@@ -262,9 +308,7 @@ esbuild
                 throw new Error('Ghost notification template loader changed');
               source = source.replaceAll(original, '(' + registry + ')[templateName]');
             }
-            if (
-              args.path === path.join(root, 'node_modules/@tryghost/nodemailer/lib/nodemailer.js')
-            ) {
+            if (args.path === releaseFile('node_modules/@tryghost/nodemailer/lib/nodemailer.js')) {
               const original = 'switch (transport) {';
               if (!source.includes(original))
                 throw new Error('Ghost mail transport factory changed');
@@ -280,7 +324,7 @@ esbuild
                   original,
               );
             }
-            if (args.path === path.join(root, 'core/server/lib/mail/email-content-generator.js')) {
+            if (args.path === releaseFile('core/server/lib/mail/email-content-generator.js')) {
               const original = 'const compiled = _.template(content);';
               if (!source.includes(original)) throw new Error('Ghost mail compiler changed');
               source = source.replace(
@@ -305,17 +349,17 @@ esbuild
                 .replace("import { addIsLowercaseKeyword } from './is-lowercase-keyword.js';", '');
             }
 
-            if (args.path === path.join(root, 'core/frontend/web/site.js'))
+            if (args.path === releaseFile('core/frontend/web/site.js'))
               source = source.replaceAll(
                 "require(path.join(config.get('paths').internalAppPath, appName))",
                 'require(' + JSON.stringify(appRegistryPath) + ')(appName)',
               );
-            if (args.path === path.join(root, 'core/frontend/services/apps/loader.js'))
+            if (args.path === releaseFile('core/frontend/services/apps/loader.js'))
               source = source.replace(
                 'require(getAppAbsolutePath(name))',
                 'require(' + JSON.stringify(appRegistryPath) + ')(name)',
               );
-            if (args.path === path.join(root, 'node_modules/gscan/lib/specs/index.js'))
+            if (args.path === releaseFile('node_modules/gscan/lib/specs/index.js'))
               source = source.replace(
                 'require(`./${[version]}`)',
                 '(' +
@@ -333,7 +377,7 @@ esbuild
                     .join('') +
                   '(()=>{throw new Error("Unknown Ghost theme spec: "+version)})())',
               );
-            if (args.path === path.join(root, 'node_modules/gscan/lib/checker.js')) {
+            if (args.path === releaseFile('node_modules/gscan/lib/checker.js')) {
               const checks = fs
                 .readdirSync(path.join(root, 'node_modules/gscan/lib/checks'))
                 .filter((file) => file.endsWith('.js'));
@@ -352,7 +396,7 @@ esbuild
                   '};',
               );
             }
-            if (args.path === path.join(root, 'core/server/services/themes/theme-storage.js')) {
+            if (args.path === releaseFile('core/server/services/themes/theme-storage.js')) {
               source = source.replace(
                 'module.exports = ThemeStorage;',
                 'module.exports = require(' +
@@ -418,7 +462,7 @@ esbuild
               );
             if (
               args.path ===
-              path.join(root, 'core/frontend/services/theme-engine/handlebars/template.js')
+              releaseFile('core/frontend/services/theme-engine/handlebars/template.js')
             )
               source = source.replace(
                 /_\.template\(\s*((?:'[^'\\]*(?:\\.[^'\\]*)*'|"[^"\\]*(?:\\.[^"\\]*)*"))\s*,?\s*\)/g,
@@ -434,24 +478,24 @@ esbuild
                   );
                 },
               );
-            if (args.path === path.join(root, 'core/server/data/db/database-state-manager.js'))
+            if (args.path === releaseFile('core/server/data/db/database-state-manager.js'))
               source = source.replace(
                 'knexMigratorFilePath,',
                 'knexMigratorFilePath, knexMigratorConfig: require(' +
                   JSON.stringify(path.join(root, 'MigratorConfig.js')) +
                   '),',
               );
-            if (args.path === path.join(root, 'node_modules/knex-migrator/lib/database.js'))
+            if (args.path === releaseFile('node_modules/knex-migrator/lib/database.js'))
               source = source.replace(
                 'function loadKnex(options) {',
                 'function loadKnex(options) { return peerKnex;',
               );
-            if (args.path === path.join(root, 'MigratorConfig.js'))
+            if (args.path === releaseFile('MigratorConfig.js'))
               source = source.replace(
                 "require('tsx/cjs');",
                 '/* Compiled production release needs no TypeScript loader. */',
               );
-            if (args.path === path.join(root, 'node_modules/knex-migrator/lib/utils.js')) {
+            if (args.path === releaseFile('node_modules/knex-migrator/lib/utils.js')) {
               source =
                 'const ghostCFMigrations=require(' + JSON.stringify(registryPath) + ');\n' + source;
               source = source.replaceAll(
@@ -463,7 +507,7 @@ esbuild
                 'ghostCFMigrations[path.join(absolutePath,file)]()',
               );
             }
-            if (args.path === path.join(root, 'node_modules/knex-migrator/lib/index.js')) {
+            if (args.path === releaseFile('node_modules/knex-migrator/lib/index.js')) {
               source = source
                 .replaceAll(
                   "require(path.join(self.migrationPath, '/hooks/init'))",
@@ -479,7 +523,7 @@ esbuild
                 );
             }
 
-            if (args.path === path.join(root, 'core/boot.js'))
+            if (args.path === releaseFile('core/boot.js'))
               source = source
                 .replace('process.exit(1);', 'throw error;')
                 .replace('process.exit(2);', 'throw serverStartError;');
@@ -496,7 +540,7 @@ esbuild
                 "require(path.join(getProcessRoot(), 'loggingrc'))",
                 'require(' + JSON.stringify(path.join(root, 'loggingrc.js')) + ')',
               );
-            if (args.path === path.join(root, 'core/server/services/adapter-manager/index.js'))
+            if (args.path === releaseFile('core/server/services/adapter-manager/index.js'))
               source = source.replace(
                 'loadAdapterFromPath: require,',
                 'loadAdapterFromPath: (name)=>{const adapterName=name.split("/").pop();const registry=require(' +
@@ -509,19 +553,19 @@ esbuild
                   JSON.stringify(path.join(root, 'core/server/adapters/sso/DefaultSSOAdapter.js')) +
                   ');throw new Error("Ghost adapter not linked: "+name);},',
               );
-            if (args.path === path.join(root, 'core/server/models/base/bookshelf.js'))
+            if (args.path === releaseFile('core/server/models/base/bookshelf.js'))
               source = source.replace(
                 "ghostBookshelf.plugin('bookshelf-relations',",
                 "ghostBookshelf.plugin(require('bookshelf-relations'),",
               );
-            if (args.path === path.join(root, 'core/server/data/schema/default-settings/index.js'))
+            if (args.path === releaseFile('core/server/data/schema/default-settings/index.js'))
               source = source.replace(
                 'require(defaultSettingsPath)',
                 'require("./default-settings.json")',
               );
-            if (args.path === path.join(root, 'core/server/data/schema/fixtures/index.js'))
+            if (args.path === releaseFile('core/server/data/schema/fixtures/index.js'))
               source = source.replace('require(fixturePath)', 'require("./fixtures.json")');
-            if (args.path === path.join(root, 'core/shared/config/index.js'))
+            if (args.path === releaseFile('core/shared/config/index.js'))
               source = source.replace(
                 'loadNconf)()',
                 'loadNconf)({baseConfigPath: "/tmp/ghost/core/shared/config", customConfigPath: "/tmp/ghost"})',
@@ -554,6 +598,10 @@ esbuild
     logLimit: 20,
   })
   .then((result) => {
+    fs.writeFileSync(
+      path.join(outputRoot, 'ghost-runtime-package-assets.json'),
+      JSON.stringify(runtimePackageAssets),
+    );
     fs.writeFileSync(
       path.join(outputRoot, 'ghost-platform-metafile.json'),
       JSON.stringify(result.metafile),

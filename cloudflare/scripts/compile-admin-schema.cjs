@@ -3,7 +3,8 @@ const path = require('node:path');
 const { createRequire } = require('node:module');
 
 function compileAdminSchemas(root, output) {
-  const releaseRequire = createRequire(path.join(root, 'package.json'));
+  const rootRequire = createRequire(path.join(root, 'package.json'));
+  const releaseRequire = createRequire(rootRequire.resolve('@tryghost/admin-api-schema'));
   const { Ajv } = releaseRequire('ajv');
   const { _ } = releaseRequire('ajv/dist/compile/codegen');
   const standaloneCode = releaseRequire('ajv/dist/standalone').default;

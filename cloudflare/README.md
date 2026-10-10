@@ -1,6 +1,6 @@
 # Ghost on Cloudflare
 
-Experimental port of Ghost 6.69.0. **Full Ghost boot and core publishing work locally in Workers.**
+Experimental port of Ghost 6.69.0. **Full Ghost boot and core publishing work on Cloudflare Workers.**
 The full site bootstrap is experimental; feature parity and production readiness
 are still being verified. The default project remains an adapter probe.
 
@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Thirty local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Thirty-two local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -86,8 +86,9 @@ publishing, and rendering the resulting public post pass locally, as do the tags
 members, newsletters, tiers, and settings read APIs. Image uploads through the Admin API and byte-for-byte R2 retrieval also pass.
 Admin JavaScript and CSS delivery, native alarm scheduled publishing, and
 published-content persistence across complete runtime restart pass locally.
-External integrations and full browser workflows are still being verified. These results do not establish a usable
-Ghost installation. The beta
+Real browser publishing and production staff/member authentication also pass.
+Complete feature parity, integrations, free-tier compatibility and throughput
+remain unfinished. The beta
 `cf dev` runner currently fails with a code-generation error; production bundles
 are being tested directly in the local Workers runtime.
 
@@ -160,11 +161,27 @@ Use an installed official release containing its runtime dependencies, bundled
 themes, and built Admin assets. From this directory:
 
 ```sh
+node scripts/install-release.cjs /absolute/path/to/new/ghost-release
 node scripts/build-ghost.cjs /absolute/path/to/installed/ghost artifacts/ghost
 node scripts/prepare-assets.cjs /absolute/path/to/installed/ghost artifacts/ghost https://your-test-worker.your-subdomain.workers.dev
 cd site
 GHOST_CF_WORKER_NAME=your-unique-test-worker GHOST_CF_BUCKET_NAME=your-dedicated-bucket cf deploy --dry-run
 ```
+
+The installer defaults to the tested version in `upstream.json`. It downloads the
+official GitHub release, checks GitHub's SHA-256 digest, refuses existing output
+directories, and installs production dependencies with the unchanged frozen pnpm
+lockfile. Native dependency build scripts are unnecessary for this port and are
+disabled. Pass a version or `latest` as the second argument to fetch another
+release; downloading a newer release does not establish compatibility. Build and
+validate it privately before updating the publication.
+
+The builder resolves package files canonically for pnpm's isolated layout,
+resolves AJV through the upstream schema package, and hydrates the filesystem
+assets at their actual virtual paths. A fresh official-release installation passes
+local boot, schema, staff/member authentication, publishing, R2 media, uploaded
+themes and restart checks. pnpm deduplication reduces the compressed Ghost bundle
+from about 8.2 MiB to 7.5 MiB; it still exceeds the free-plan limit.
 
 Set `CLOUDFLARE_ACCOUNT_ID` to select the intended account. Create the dedicated
 bucket using `cf`, then deploy with `--secrets-file` pointing to a private JSON
