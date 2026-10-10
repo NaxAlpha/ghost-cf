@@ -1,6 +1,6 @@
 const { getBindings } = require('./context.cjs');
 
-function createMailTransport({ addressParser }) {
+function createMailTransport({ addressParser, htmlToText }) {
   function addresses(value) {
     if (value == null) return [];
     if (Array.isArray(value)) return value.flatMap(addresses);
@@ -41,6 +41,14 @@ function createMailTransport({ addressParser }) {
         ...(message.replyTo ? { replyTo: single(message.replyTo, 'replyTo') } : {}),
         ...(Object.keys(headers).length ? { headers } : {}),
       };
+      if (
+        message.text === undefined &&
+        message.html &&
+        message.generateTextFromHTML &&
+        htmlToText
+      ) {
+        payload.text = htmlToText.fromString(message.html);
+      }
       if (message.attachments?.length) {
         payload.attachments = message.attachments.map((attachment) => {
           if (attachment.path || attachment.href || attachment.raw || attachment.content == null) {

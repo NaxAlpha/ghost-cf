@@ -88,3 +88,34 @@ test('preserves delivery failure and rejects missing bindings or unsupported att
     /in-memory/,
   );
 });
+
+test('generates plaintext for Ghost device verification without replacing explicit text', async () => {
+  let sent;
+  const mail = createMailTransport({
+    addressParser: (input) => [{ address: input }],
+    htmlToText: { fromString: (html) => html.replace(/<[^>]*>/g, '') },
+  });
+  await withBindings(
+    {
+      EMAIL: {
+        send: async (payload) => {
+          sent = payload;
+          return { messageId: 'test-message' };
+        },
+      },
+    },
+    async () => {
+      const message = {
+        from: 'ghost@example.test',
+        to: 'owner@example.test',
+        subject: 'Verification',
+        html: '<p>123456</p>',
+        generateTextFromHTML: true,
+      };
+      await mail.sendMail(message);
+      assert.equal(sent.text, '123456');
+      await mail.sendMail({ ...message, text: 'Use this code' });
+      assert.equal(sent.text, 'Use this code');
+    },
+  );
+});

@@ -37,7 +37,7 @@ Remote tests on Cloudflare passed on 2026-10-09:
 - All 99 upstream schema tables created using Ghost's unchanged table builder,
   plus foreign-key validation and nested rollback with outer commit.
 
-Twenty-seven local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
+Twenty-eight local tests cover D1 queries, bindings, Bookshelf database identity, SQLite migration error codes,
 R2 streaming and byte ranges, subdirectory URLs, and build-time Handlebars compilation. Type checking and both Worker probe bundles
 pass. These checks do not establish full Ghost compatibility or throughput.
 Test Workers, the current-account D1 database, and R2 bucket were deleted after
@@ -193,8 +193,16 @@ allowed custom headers, in-memory attachments, and provider delivery errors.
 Ghost's HTML mail templates compile at build time, avoiding runtime code
 generation; notification text templates are linked statically.
 
-The real password-reset API returns HTTP 200 through Cloudflare's local email
-simulator. This verifies the Ghost mail path, not live delivery or every mail
-workflow. Cloudflare Email Service is for transactional messages; Ghost
+Local end-to-end checks pass password-reset email generation, password changes,
+staff device-verification email and code verification, member signup email,
+signup-link verification, and signed member identity sessions. Messages are
+accepted by the native local email simulator; a test-only capture checks their
+HTML and text without real delivery. Live delivery and every mail workflow still
+need verification. Cloudflare Email Service is for transactional messages; Ghost
 newsletters still require a supported bulk-mail provider. Do not configure a
 real sender for disposable tests unless delivery is intended.
+
+Ghost's trusted integration HTTP client also fetches external HTTPS in Workers
+after delegating its default DNS resolution to the platform. The separate
+`request-external` DNS checks used for user-supplied URLs are preserved and still
+need a compatible secure transport before those integrations work.

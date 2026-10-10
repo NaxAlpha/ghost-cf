@@ -223,6 +223,19 @@ esbuild
           });
           build.onLoad({ filter: /\.(?:js|cjs|mjs)$/, namespace: 'file' }, async (args) => {
             let source = fs.readFileSync(args.path, 'utf8');
+            if (args.path === path.join(root, 'node_modules/@tryghost/request/lib/request.js')) {
+              const original = 'dnsLookup: cacheableLookup.lookup,';
+              if (!source.includes(original))
+                throw new Error('Ghost default HTTP DNS configuration changed');
+              // Workers resolves trusted integration requests through its own HTTP bridge.
+              // Caller-supplied lookups and request-external's SSRF protection remain intact.
+              source = source
+                .replace(original, '')
+                .replace(
+                  "const CacheableLookup = require('cacheable-lookup').default;\n\nconst cacheableLookup = new CacheableLookup({\n    lookup: false,\n});",
+                  '',
+                );
+            }
             if (
               args.path === path.join(root, 'core/server/services/staff/staff-service-emails.js') ||
               args.path ===
@@ -261,6 +274,8 @@ esbuild
                   JSON.stringify(path.join(platformRoot, 'src/mail-transport.cjs')) +
                   ').createMailTransport({addressParser:require(' +
                   JSON.stringify(createRequire(args.path).resolve('nodemailer/lib/addressparser')) +
+                  '),htmlToText:require(' +
+                  JSON.stringify(path.join(root, 'node_modules/html-to-text')) +
                   ')});' +
                   original,
               );
