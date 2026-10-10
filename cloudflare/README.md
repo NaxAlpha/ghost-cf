@@ -6,6 +6,7 @@ are still being verified. The default project remains an adapter probe.
 
 Upstream Ghost is preserved. All port code lives in this directory, with its own
 pnpm workspace. `upstream.json` records the release and commit being tested.
+See [compatibility status](COMPATIBILITY.md) for verified features and open gaps.
 
 ## Architecture
 
