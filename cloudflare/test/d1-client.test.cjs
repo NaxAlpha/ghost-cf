@@ -4,7 +4,7 @@ const { DatabaseSync } = require('node:sqlite');
 const knex = require('knex');
 const { D1Client, normalizeBinding } = require('../src/d1-client.cjs');
 const { withBindings, getBindings } = require('../src/context.cjs');
-const { createDurableDatabase } = require('../src/durable-client.cjs');
+const { createDurableDatabase, DurableClient } = require('../src/durable-client.cjs');
 
 function database() {
   const sqlite = new DatabaseSync(':memory:');
@@ -63,6 +63,26 @@ test('preserves Bookshelf factory identity and Ghost database configuration', ()
   assert.equal(db.client.config.client, 'sqlite3');
   assert.equal(db.client.config.debug, true);
   assert.doesNotThrow(() => require('bookshelf')(db));
+});
+
+test('exposes the SQLite error code required to initialize Ghost migrations', async () => {
+  const client = new DurableClient();
+  const error = new Error('no such table: migrations: SQLITE_ERROR');
+  await assert.rejects(
+    client._query(
+      {
+        storage: {
+          sql: {
+            exec() {
+              throw error;
+            },
+          },
+        },
+      },
+      { sql: 'SELECT * FROM migrations' },
+    ),
+    (caught) => caught === error && caught.code === 'SQLITE_ERROR',
+  );
 });
 
 test('rejects interactive transactions before running any callback or writes', () => {

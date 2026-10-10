@@ -51,7 +51,16 @@ class DurableClient extends D1Client {
   async _query(connection, query) {
     if (!query.sql) throw new Error('The query is empty');
     const sql = connection.storage.sql;
-    const cursor = sql.exec(query.sql, ...(query.bindings || []).map(normalizeBinding));
+    let cursor;
+    try {
+      cursor = sql.exec(query.sql, ...(query.bindings || []).map(normalizeBinding));
+    } catch (error) {
+      // Ghost's migrator distinguishes an uninitialized database using the
+      // native SQLite code. Workers puts that code in the error message.
+      const code = error.message?.match(/\b(SQLITE_[A-Z_]+)\b/)?.[1];
+      if (code && !error.code) error.code = code;
+      throw error;
+    }
     // Consume synchronously: a cursor retained across await is not a snapshot.
     query.response = cursor.toArray();
     query.context = sql.exec('SELECT last_insert_rowid() AS lastID, changes() AS changes').one();
